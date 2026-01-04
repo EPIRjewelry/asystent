@@ -96,20 +96,42 @@ export default {
         ${mcpAnswer ? `DANE Z MCP (Shopify):\n${mcpAnswer}` : ''}`;
 
       const userMessageContent = `${query}${visualAnalysis}`;
-      const aiResponse = await env.AI.run('@cf/mistral/mistral-7b-instruct-v0.1', { // Llama 3.2 8B/70B Instruct może być lepsze
-        messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessageContent }]
+      const messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessageContent }];
+
+      const aiResponse = await env.AI.run('@cf/meta/llama-3-1-8b-instruct-tool-use', {
+        messages,
+        tools: Object.values(availableTools) // Przekaż listę dostępnych narzędzi do modelu
       });
 
-      const answer = aiResponse.response || 'Nie mogłem znaleźć odpowiedzi.';
+      // Sprawdź, czy model chce wywołać narzędzie
+      if (aiResponse.tool_calls && aiResponse.tool_calls.length > 0) {
+        console.log(`[Brain Service] Session ${session_id} initiated tool calls.`);
+        const toolCall = aiResponse.tool_calls[0]; // Na razie obsłużmy jedno wywołanie
+        
+        const toolResult = await executeTool(toolCall.name, toolCall.arguments, env);
+        
+        // Dodaj wynik działania narzędzia do historii i ponownie wywołaj LLM
+        messages.push({ role: 'assistant', content: JSON.stringify(aiResponse) });
+        messages.push({ role: 'tool', content: JSON.stringify(toolResult) });
 
-      // Zapisz do cache D1 (tylko dla zapytań bez obrazu, by uniknąć złożonych kluczy cache)
-      if (query && !image_data_base64) {
-        await env.RAG_CACHE_DB.prepare('INSERT INTO rag_cache (query, response) VALUES (?, ?) ON CONFLICT(query) DO UPDATE SET response=excluded.response')
-          .bind(query, answer)
-          .run();
+        const finalAiResponse = await env.AI.run('@cf/meta/llama-3-1-8b-instruct-tool-use', { messages });
+
+        const answer = finalAiResponse.response || 'Nie mogłem znaleźć odpowiedzi po użyciu narzędzia.';
+        return json({ answer, source: 'llm+tool', toolUsed: toolCall.name });
+
+      } else {
+        // Standardowa odpowiedź bez narzędzi
+        const answer = aiResponse.response || 'Nie mogłem znaleźć odpowiedzi.';
+        
+        // Zapisz do cache D1
+        if (query && !image_data_base64) {
+          await env.RAG_CACHE_DB.prepare('INSERT INTO rag_cache (query, response) VALUES (?, ?) ON CONFLICT(query) DO UPDATE SET response=excluded.response')
+            .bind(query, answer)
+            .run();
+        }
+
+        return json({ answer, source: mcpAnswer ? 'mcp+llm' : 'llm', contextUsed: !!(contextFromVectorize || mcpAnswer), visualAnalysis: visualAnalysis });
       }
-
-      return json({ answer, source: mcpAnswer ? 'mcp+llm' : 'llm', contextUsed: !!(contextFromVectorize || mcpAnswer), visualAnalysis: visualAnalysis });
     }
 
     return new Response('Brain Service is running!', { status: 200 });

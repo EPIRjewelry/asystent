@@ -1,0 +1,25 @@
+# This is the configuration file for your Shopify app.
+# After uploading, it will be kept in sync with the app settings in the Partners Dashboard.
+
+name = "Epir AI Assistant V2"
+client_id = "YOUR_APP_CLIENT_ID" # Uzupełnij po utworzeniu aplikacji w Shopify Partners
+application_url = "https://epir-gateway-worker.yourdomain.workers.dev" # Zastąp swoim produkcyjnym URL-em gatewaya
+embedded = true
+
+[access_scopes]
+# Zdefiniuj uprawnienia, których będzie potrzebować Twoja aplikacja (np. do odczytu produktów)
+# scopes = "read_products,write_products"
+
+[auth]
+redirect_urls = [
+  "https://epir-gateway-worker.yourdomain.workers.dev/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2024-07"
+
+# Konfiguracja App Proxy, która pozwoli na bezpieczne wywołania backendu z poziomu sklepu
+[app_proxy]
+url = "https://epir-gateway-worker.yourdomain.workers.dev/api" # URL, na który Shopify będzie proxy'ować zapytania
+subpath = "chat" # Ścieżka w sklepie, np. /apps/chat
+prefix = "apps"
