@@ -1,0 +1,29 @@
+name = "epir-customer-dialogue-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[placement]
+mode = "smart"
+
+[durable_objects]
+bindings = [
+  { name = "CHAT_SESSION_DO", class_name = "ChatSessionDO", script_name = "epir-customer-dialogue-worker" }
+]
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["ChatSessionDO"] # Aktywuje wewnętrzny SQLite dla Durable Object
+
+[[d1_databases]]
+binding = "AI_ASSISTANT_SESSIONS_DB"
+database_name = "ai-assistant-sessions-db"
+database_id = "475a1cb7-f1b5-47ba-94ed-40fd64c32451"
+
+[[services]]
+binding = "BRAIN_SERVICE"
+service = "epir-brain-service"
+
+[observability]
+  traces.enabled = true
+  logs.enabled = true

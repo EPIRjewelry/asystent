@@ -1,0 +1,16 @@
+name = "epir-web-pixel-ingestor"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[placement]
+mode = "smart"
+
+[[d1_databases]]
+binding = "WEB_PIXEL_EVENTS_DB"
+database_name = "epir-web-pixel-events-db"
+database_id = "bd3daeab-1853-48c8-8779-32b43a4a5a85"
+
+[observability]
+  traces.enabled = true
+  logs.enabled = true

@@ -1,0 +1,27 @@
+name = "epir-brain-service"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+MCP_API_ENDPOINT = "https://your-mcp-endpoint"
+MCP_API_KEY = "your_mcp_api_key"
+
+[placement]
+mode = "smart"
+
+[ai]
+binding = "AI" # Binding do Workers AI (dla Llama 3.2 Vision i innych modeli)
+
+[[vectorize]]
+binding = "RAG_VECTOR_INDEX"
+index_name = "epir-rag-index"
+
+[[d1_databases]]
+binding = "RAG_CACHE_DB"
+database_name = "epir-rag-cache-db"
+database_id = "7f72148c-30ba-4143-9133-46d1727b85a7"
+
+[observability]
+  traces.enabled = true
+  logs.enabled = true

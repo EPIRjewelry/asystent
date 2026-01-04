@@ -1,0 +1,23 @@
+name = "epir-gateway-worker"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+SHOP_DOMAIN = "your-shopify-store.myshopify.com"
+SHOPIFY_API_SECRET = "your_shopify_api_secret"
+
+[placement]
+mode = "smart"
+
+[services]
+  [services.CUSTOMER_DIALOGUE_SERVICE]
+  service = "epir-customer-dialogue-worker"
+  [services.WEB_PIXEL_INGESTOR_SERVICE]
+  service = "epir-web-pixel-ingestor"
+  [services.ANALYTICS_API_SERVICE]
+  service = "epir-analytics-api-worker"
+
+[observability]
+  traces.enabled = true
+  logs.enabled = true
