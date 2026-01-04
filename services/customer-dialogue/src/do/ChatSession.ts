@@ -99,30 +99,50 @@ export class ChatSessionDO {
   }
 
   async alarm(): Promise<void> {
-    console.log(`[${this.sessionId}] Alarm triggered. Syncing messages to D1 archive.`);
-    const allMessages = await this.getMessages(); // Pobierz wszystkie wiadomości z wewnętrznego SQLite
-    if (allMessages.length === 0) {
+    const BATCH_SIZE = 50; // Ile wiadomości synchronizować na raz
+    const HOT_CONTEXT_LIMIT = 20; // Ile wiadomości trzymać w SQLite
+
+    // Krok 1: Pobierz ID wiadomości do synchronizacji
+    const unsyncedMessagesStmt = this.sql.prepare('SELECT id FROM local_messages WHERE synced = 0 LIMIT ?');
+    const unsyncedMessageIds = (await unsyncedMessagesStmt.bind(BATCH_SIZE).all()).results.map((row) => row.id);
+
+    if (unsyncedMessageIds.length === 0) {
+      console.log(`[${this.sessionId}] Alarm triggered, but no messages to sync.`);
+      // Opcjonalnie: wyczyść stare wiadomości, jeśli nie ma nic do synchronizacji
+      await this.sql.prepare('DELETE FROM local_messages WHERE id NOT IN (SELECT id FROM local_messages ORDER BY timestamp DESC LIMIT ?)').bind(HOT_CONTEXT_LIMIT).run();
       return;
     }
 
+    console.log(`[${this.sessionId}] Alarm triggered. Syncing ${unsyncedMessageIds.length} messages to D1 archive.`);
+
     try {
-      // Wstaw lub zaktualizuj całą sesję w D1 (messages jako JSON)
+      // Krok 2: Pobierz pełną historię sesji, aby zaktualizować archiwum
+      // D1 przechowuje całą sesję w jednym wierszu JSON, więc musimy zaktualizować całość
+      const allMessages = await this.getMessages();
+
+      // Krok 3: Zaktualizuj archiwum w D1
       await this.env.AI_ASSISTANT_SESSIONS_DB.prepare(
-        'INSERT OR REPLACE INTO ai_sessions_archive (id, customer_id, start_time, messages, end_time) VALUES (?, ?, JSON(?), ?, ?)'
+        'INSERT OR REPLACE INTO ai_sessions_archive (id, customer_id, messages, start_time, end_time) VALUES (?, ?, ?, ?, ?)'
       )
         .bind(
           this.sessionId,
-          'TODO_CUSTOMER_ID', // TODO: customer_id powinien być przekazywany/zarządzany
+          'TODO_CUSTOMER_ID', // TODO: customer_id
           JSON.stringify(allMessages),
           new Date(allMessages[0]?.timestamp || Date.now()).toISOString(),
           new Date().toISOString()
         )
         .run();
 
-      // Po udanej archiwizacji, usuń zsynchornizowane wiadomości z wewnętrznego SQLite
-      // (zakładając, że cała sesja została zarchiwizowana, a DO ma tylko buforować)
-      await this.sql.exec('DELETE FROM local_messages');
-      console.log(`[${this.sessionId}] Session archived to D1 and cleared from DO internal SQLite.`);
+      // Krok 4: Oznacz wiadomości jako zsynchronizowane w SQLite
+      const updateStmt = this.sql.prepare(`UPDATE local_messages SET synced = 1 WHERE id IN (${'?,'.repeat(unsyncedMessageIds.length).slice(0, -1)})`);
+      await updateStmt.bind(...unsyncedMessageIds).run();
+      
+      console.log(`[${this.sessionId}] Marked ${unsyncedMessageIds.length} messages as synced.`);
+
+      // Krok 5: Przytnij historię w SQLite do "gorącego kontekstu"
+      await this.sql.prepare('DELETE FROM local_messages WHERE id NOT IN (SELECT id FROM local_messages ORDER BY timestamp DESC LIMIT ?)').bind(HOT_CONTEXT_LIMIT).run();
+
+      console.log(`[${this.sessionId}] Session archived to D1 and SQLite context truncated.`);
     } catch (error) {
       console.error(`[${this.sessionId}] Error archiving session to D1:`, error);
       // Ponów próbę za 30 sekund w przypadku błędu D1

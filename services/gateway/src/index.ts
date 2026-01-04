@@ -13,21 +13,23 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
-    // opcjonalnie: weryfikacja HMAC
-    // if (!verifyShopifyHmac(request, env.SHOPIFY_API_SECRET)) {
-    //   return new Response('Unauthorized', { status: 401 });
-    // }
+    // Weryfikacja HMAC dla wszystkich zapytań do API
+    if (url.pathname.startsWith('/api/')) {
+        if (!await verifyShopifyHmac(request, env.SHOPIFY_API_SECRET)) {
+            return new Response('Unauthorized', { status: 401 });
+        }
+    }
 
     if (url.pathname.startsWith('/api/chat')) {
-      return env.CUSTOMER_DIALOGUE_SERVICE.fetch(request);
+      return env.CUSTOMER_DIALOGUE_SERVICE.fetch(request.clone());
     }
 
     if (url.pathname.startsWith('/api/pixel')) {
-      return env.WEB_PIXEL_INGESTOR_SERVICE.fetch(request);
+      return env.WEB_PIXEL_INGESTOR_SERVICE.fetch(request.clone());
     }
 
     if (url.pathname.startsWith('/api/analytics')) {
-      return env.ANALYTICS_API_SERVICE.fetch(request);
+      return env.ANALYTICS_API_SERVICE.fetch(request.clone());
     }
 
     return new Response('Epir AI Gateway', { status: 200 });

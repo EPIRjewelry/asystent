@@ -1,7 +1,10 @@
+import { availableTools, executeTool, ToolResult } from './tools';
+
 export interface Env {
   AI: any; // Cloudflare Workers AI binding
   RAG_VECTOR_INDEX: any; // Vectorize binding
   RAG_CACHE_DB: D1Database;
+  ANALYTICS_API_SERVICE: Fetcher;
   MCP_API_ENDPOINT: string;
   MCP_API_KEY: string;
 }

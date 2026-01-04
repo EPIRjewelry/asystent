@@ -17,6 +17,10 @@ binding = "AI" # Binding do Workers AI (dla Llama 3.2 Vision i innych modeli)
 binding = "RAG_VECTOR_INDEX"
 index_name = "epir-rag-index"
 
+[[services]]
+binding = "ANALYTICS_API_SERVICE"
+service = "epir-analytics-api-worker"
+
 [[d1_databases]]
 binding = "RAG_CACHE_DB"
 database_name = "epir-rag-cache-db"
