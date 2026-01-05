@@ -18,7 +18,6 @@ export async function getGroqResponse(env: any, payload: AiPayload) {
   const response = await fetch(gatewayUrl, {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${env.GROQ_API_KEY}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({

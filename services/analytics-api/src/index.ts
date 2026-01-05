@@ -1,5 +1,7 @@
 export interface Env {
   WEB_PIXEL_EVENTS_DB: D1Database;
+  CLOUDFLARE_ACCOUNT_ID: string;
+  AI_GATEWAY_ID: string;
 }
 
 export default {

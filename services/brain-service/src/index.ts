@@ -13,7 +13,6 @@ export interface Env {
   SHOPIFY_DOMAIN: string; // Domena sklepu Shopify, np. "epir-jewelry-development.myshopify.com"
   CLOUDFLARE_ACCOUNT_ID: string;
   AI_GATEWAY_ID: string;
-  GROQ_API_KEY?: string;
 }
 
 interface ProcessRequest {

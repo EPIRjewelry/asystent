@@ -3,6 +3,8 @@ import { verifyShopifyHmac } from './utils/shopify'; // do zaimplementowania
 export interface Env {
   SHOP_DOMAIN: string;
   SHOPIFY_API_SECRET: string;
+  CLOUDFLARE_ACCOUNT_ID: string;
+  AI_GATEWAY_ID: string;
 
   CUSTOMER_DIALOGUE_SERVICE: Fetcher;
   WEB_PIXEL_INGESTOR_SERVICE: Fetcher;
