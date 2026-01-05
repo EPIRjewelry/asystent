@@ -156,10 +156,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // 4. DOM Event: input_changed
         document.addEventListener('change', (event) => {
             if (event.target && (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.tagName === 'SELECT')) {
+                const target = event.target;
+                const newValueLen = (target && (target.value != null)) ? target.value.length : 0;
                 window.Shopify.analytics.publish('input_changed', {
-                    targetId: event.target.id || event.target.name || 'anonymous_input',
-                    elementType: event.target.tagName,
-                    newValueLength: (event.target as HTMLInputElement).value.length,
+                    targetId: target.id || target.name || 'anonymous_input',
+                    elementType: target.tagName,
+                    newValueLength: newValueLen,
                     pageUrl: window.location.href,
                 });
             }
@@ -167,8 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 5. DOM Event: form_submitted
         document.addEventListener('submit', (event) => {
+            const target = event.target;
+            const formId = (target && (target.id || target.name)) ? (target.id || target.name) : 'anonymous_form';
             window.Shopify.analytics.publish('form_submitted', {
-                formId: event.target ? (event.target as HTMLFormElement).id || (event.target as HTMLFormElement).name || 'anonymous_form' : 'unknown_form',
+                formId,
                 pageUrl: window.location.href,
             });
         });
@@ -222,12 +226,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     document.addEventListener('submit', (event) => {
-      const target = event.target as HTMLFormElement;
+      const target = event.target;
       if (target && target.tagName === 'FORM') {
+        const formId = target.id || target.name || 'anonymous_form';
+        const formAction = target.action || '';
+        const formMethod = target.method || '';
         Shopify.analytics.publish('form_submitted', {
-          formId: target.id,
-          formAction: target.action,
-          formMethod: target.method,
+          formId,
+          formAction,
+          formMethod,
           timestamp: new Date().toISOString(),
         });
       }

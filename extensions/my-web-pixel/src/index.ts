@@ -1,6 +1,6 @@
 import { register } from "@shopify/web-pixels-extension";
 
-register(({ analytics, browser, init, settings }) => {
+register(({ analytics, browser, init, settings }: any) => {
   const GATEWAY_ENDPOINT = '/apps/chat/api/pixel/ingest'; // Endpoint Gatewaya przez App Proxy
 
   // Funkcja do pobierania sessionId (z localStorage, lub generowanie nowego)
@@ -35,7 +35,7 @@ register(({ analytics, browser, init, settings }) => {
 
   // Subskrybuj wszystkie zdefiniowane eventy
   eventsToSubscribe.forEach(eventName => {
-    analytics.subscribe(eventName as any, async (event) => { // 'as any' workaround for custom events
+    analytics.subscribe(eventName, async (event: any) => { // event typed as any for now
       console.log(`[Web Pixel] Event subscribed: ${eventName}`, event);
 
       try {
