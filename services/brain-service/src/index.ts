@@ -36,7 +36,8 @@ export default {
       if (query && !image_data_base64) {
         const cached = await env.RAG_CACHE_DB.prepare('SELECT response FROM rag_cache WHERE query = ?')
           .bind(query)
-          .first<{ response: string }>();
+          .first();
+          const cachedResponse = cached as { response?: string } | null;
         if (cached?.response) {
           return json({ answer: cached.response, source: 'cache' });
         }

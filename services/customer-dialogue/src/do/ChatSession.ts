@@ -66,7 +66,8 @@ export class ChatSessionDO {
     const url = new URL(request.url);
 
     if (url.pathname.endsWith('/send') && request.method === 'POST') {
-      const { role, content, image_data_base64 } = await request.json<{ role: Message['role']; content: string; image_data_base64?: string }>();
+      const body = await request.json();
+      const { role, content, image_data_base64 } = body as { role: Message['role']; content: string; image_data_base64?: string };
       await this.addMessage(role, content, image_data_base64);
 
       // Przykładowe wywołanie Brain Service (do rozbudowania)
@@ -104,7 +105,7 @@ export class ChatSessionDO {
 
     // Krok 1: Pobierz ID wiadomości do synchronizacji
     const unsyncedMessagesStmt = this.sql.prepare('SELECT id FROM local_messages WHERE synced = 0 LIMIT ?');
-    const unsyncedMessageIds = (await unsyncedMessagesStmt.bind(BATCH_SIZE).all()).results.map((row) => row.id);
+    const unsyncedMessageIds = (await unsyncedMessagesStmt.bind(BATCH_SIZE).all()).results.map((row: any) => row.id);
 
     if (unsyncedMessageIds.length === 0) {
       console.log(`[${this.sessionId}] Alarm triggered, but no messages to sync.`);

@@ -1,3 +1,5 @@
+import type { Env } from './index';
+
 // Definicja zgodna z oczekiwaniami MCP dla narzędzi, które może wywołać AI
 export interface ToolDefinition {
   name: string;

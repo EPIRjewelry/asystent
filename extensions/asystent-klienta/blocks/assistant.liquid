@@ -1,8 +1,42 @@
 {% comment %}
-  This is a block that injects the assistant chat script.
+  EPIR Assistant Widget - wstrzykuje stylowany widget czatu.
 {% endcomment %}
 
+<link rel="stylesheet" href="{{ 'assistant.css' | asset_url }}" media="all" />
 <script src="{{ 'assistant.js' | asset_url }}" defer="defer"></script>
+
+<div
+  id="epir-assistant-section"
+  class="epir-assistant epir-assistant--bottom-right"
+  style="--epir-primary-color: {{ section.settings.chat_bg_color }}; --epir-accent-color: {{ section.settings.chat_accent_color }};"
+>
+  <button
+    id="assistant-toggle-button"
+    class="epir-assistant__toggle-btn"
+    aria-expanded="false"
+    aria-controls="assistant-content"
+    aria-label="{{ section.settings.chat_title | escape }}"
+  >AI</button>
+
+  <div id="assistant-content" class="is-closed" role="dialog" aria-live="polite" aria-label="{{ section.settings.chat_title | escape }}">
+    <div class="assistant-header">
+      <span class="assistant-title">{{ section.settings.chat_title }}</span>
+    </div>
+
+    <div id="assistant-messages" class="assistant-messages"></div>
+
+    <form id="assistant-form" class="assistant-input-area">
+      <input
+        id="assistant-input"
+        type="text"
+        placeholder="Napisz wiadomość..."
+        aria-label="Wiadomość do asystenta"
+        autocomplete="off"
+      />
+      <button type="submit" class="assistant-submit-btn">Wyślij</button>
+    </form>
+  </div>
+</div>
 
 {% schema %}
   {
@@ -14,14 +48,20 @@
       {
         "type": "text",
         "id": "chat_title",
-        "label": "Chat Window Title",
+        "label": "Tytuł okna czatu",
         "default": "Epir AI Assistant"
       },
       {
         "type": "color",
         "id": "chat_bg_color",
-        "label": "Chat Background Color",
-        "default": "#ffffff"
+        "label": "Kolor główny (primary)",
+        "default": "#1a1a1a"
+      },
+      {
+        "type": "color",
+        "id": "chat_accent_color",
+        "label": "Kolor akcentu",
+        "default": "#d4af37"
       }
     ]
   }

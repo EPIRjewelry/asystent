@@ -15,6 +15,14 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
+    // Obsługa App Proxy: /apps/chat/... -> przekieruj na /api/chat/... do CUSTOMER_DIALOGUE_SERVICE
+    if (url.pathname.startsWith('/apps/chat')) {
+      const proxiedUrl = new URL(request.url);
+      proxiedUrl.pathname = url.pathname.replace('/apps/chat', '') || '/';
+      const proxiedRequest = new Request(proxiedUrl.toString(), request);
+      return env.CUSTOMER_DIALOGUE_SERVICE.fetch(proxiedRequest);
+    }
+
     // Weryfikacja HMAC dla wszystkich zapytań do API
     if (url.pathname.startsWith('/api/')) {
         if (!await verifyShopifyHmac(request, env.SHOPIFY_API_SECRET)) {
