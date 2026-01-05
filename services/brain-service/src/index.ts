@@ -26,7 +26,8 @@ export default {
     const url = new URL(request.url);
 
     if (url.pathname === '/process' && request.method === 'POST') {
-      const { query, image_data_base64, session_id } = await request.json<ProcessRequest>();
+      const body = await request.json();
+      const { query, image_data_base64, session_id } = body as ProcessRequest;
 
       if (!query && !image_data_base64) {
         return json({ error: 'Missing query or image_data_base64' }, 400);
