@@ -1,3 +1,4 @@
+/// <reference path="../../../../global.d.ts" />
 // Aby używać ctx.storage.sql, Durable Object musi być skonfigurowany z `new_sqlite_classes` w wrangler.toml
 // (co zostało uwzględnione w zaktualizowanym pliku wrangler.toml)
 export interface Env {
@@ -72,19 +73,30 @@ export class ChatSessionDO {
 
       // Przykładowe wywołanie Brain Service (do rozbudowania)
       if (role === 'user') {
-        const brainResponse = await this.env.BRAIN_SERVICE.fetch(new Request(
-          `https://brain-service/process`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: content, image_data_base64: image_data_base64, session_id: this.sessionId })
+        try {
+          const brainResponse = await this.env.BRAIN_SERVICE.fetch(new Request(
+            `https://brain-service/process`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ query: content, image_data_base64: image_data_base64, session_id: this.sessionId })
+            }
+          ));
+
+          if (!brainResponse.ok) {
+            console.error(`[${this.sessionId}] Brain service returned ${brainResponse.status}`);
+            await this.addMessage('assistant', 'Błąd połączenia z usługą AI. Spróbuj ponownie później.');
+          } else {
+            const aiResult = await brainResponse.json();
+            if (aiResult?.answer) {
+              await this.addMessage('assistant', aiResult.answer);
+            } else {
+              await this.addMessage('assistant', 'Przepraszam, nie mogę teraz odpowiedzieć.');
+            }
           }
-        ));
-        const aiResult = await brainResponse.json();
-        if (aiResult?.answer) {
-          await this.addMessage('assistant', aiResult.answer);
-        } else {
-          await this.addMessage('assistant', 'Przepraszam, nie mogę teraz odpowiedzieć.');
+        } catch (err) {
+          console.error(`[${this.sessionId}] Error contacting Brain service:`, err);
+          await this.addMessage('assistant', 'Błąd połączenia z usługą AI. Spróbuj ponownie później.');
         }
       }
       const currentMessages = await this.getMessages();
