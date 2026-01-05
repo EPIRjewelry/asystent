@@ -1,0 +1,28 @@
+{% comment %}
+  This is a block that injects the assistant chat script.
+{% endcomment %}
+
+<script src="{{ 'assistant.js' | asset_url }}" defer="defer"></script>
+
+{% schema %}
+  {
+    "name": "Chat Assistant",
+    "target": "section",
+    "stylesheet": "assistant.css",
+    "javascript": "assistant.js",
+    "settings": [
+      {
+        "type": "text",
+        "id": "chat_title",
+        "label": "Chat Window Title",
+        "default": "Epir AI Assistant"
+      },
+      {
+        "type": "color",
+        "id": "chat_bg_color",
+        "label": "Chat Background Color",
+        "default": "#ffffff"
+      }
+    ]
+  }
+{% endschema %}

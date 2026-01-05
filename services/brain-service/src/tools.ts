@@ -32,9 +32,29 @@ export const getCustomerContextTool: ToolDefinition = {
   }
 };
 
+export const getProductInfoTool: ToolDefinition = {
+  name: 'get_product_info',
+  description: 'Pobiera szczegółowe informacje o produkcie ze sklepu Shopify na podstawie jego handle (slug) lub ID. Użyj tego, aby uzyskać opis, cenę, dostępność itp. biżuterii.',
+  parameters: {
+    type: 'object',
+    properties: {
+      handle: {
+        type: 'string',
+        description: 'Handle produktu (slug), np. \"naszyjnik-perlowy\".'
+      },
+      id: {
+        type: 'string',
+        description: 'Global ID produktu Shopify, np. \"gid://shopify/Product/1234567890\".'
+      }
+    },
+    oneOf: [{ required: ['handle'] }, { required: ['id'] }]
+  }
+};
+
 // Rejestr dostępnych narzędzi
 export const availableTools: Record<string, ToolDefinition> = {
-  [getCustomerContextTool.name]: getCustomerContextTool
+  [getCustomerContextTool.name]: getCustomerContextTool,
+  [getProductInfoTool.name]: getProductInfoTool,
 };
 
 // Funkcja, która faktycznie wykonuje logikę narzędzia
@@ -66,7 +86,68 @@ export async function executeTool(toolName: string, args: any, env: any): Promis
           output: { success: false, error: error.message }
         };
       }
+    case 'get_product_info':
+      try {
+        const result = await callShopifyMcp(toolName, args, env);
+        return {
+          tool_name: toolName,
+          output: { success: true, product: result }
+        };
+      } catch (error: any) {
+        return {
+          tool_name: toolName,
+          output: { success: false, error: error.message }
+        };
+      }
     default:
       throw new Error(`Tool "${toolName}" not found.`);
+  }
+}
+
+
+async function callShopifyMcp(toolName: string, args: Record<string, any>, env: Env): Promise<any> {
+  // Budujemy URL do naszego Gatewaya, który następnie będzie proxy'ował do Shopify MCP
+  // Gateway musi być skonfigurowany z App Proxy i przekierowywać /apps/chat/api/mcp do Shopify
+  const mcpGatewayUrl = `${env.MCP_API_ENDPOINT}/apps/chat/api/mcp`; // MCP_API_ENDPOINT już zawiera adres naszego Gatewaya App Proxy
+
+  console.log(`[callShopifyMcp] Calling tool '${toolName}' via Gateway MCP Proxy: ${mcpGatewayUrl}`);
+
+  try {
+    const response = await fetch(mcpGatewayUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        // Shopify App Proxy automatycznie doda potrzebne nagłówki (HMAC, Shop Domain)
+        // do zapytania do Shopify MCP. Nasz Brain-Service nie wysyła bezpośrednio tokenów Shopify.
+        // Jeśli MCP_API_ENDPOINT ma własne uwierzytelnianie, dodaj tutaj.
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'tools/call', // Standardowa metoda JSON-RPC dla wywoływania narzędzi
+        id: 1, // Identyfikator żądania
+        params: {
+          name: toolName,
+          arguments: args,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[callShopifyMcp] Shopify MCP Tool Call Error (${toolName}): ${response.status} - ${errorText}`);
+      throw new Error(`Shopify MCP Tool Call Failed: ${response.status} - ${errorText}`);
+    }
+
+    const jsonRpcResponse = await response.json();
+
+    if (jsonRpcResponse.error) {
+      console.error(`[callShopifyMcp] Shopify MCP JSON-RPC Error (${toolName}):`, jsonRpcResponse.error);
+      throw new Error(`Shopify MCP JSON-RPC Error: ${jsonRpcResponse.error.message || 'Unknown error'}`);
+    }
+
+    return jsonRpcResponse.result; // Zwracamy wynik narzędzia
+  } catch (error) {
+    console.error(`[callShopifyMcp] Critical error during Shopify MCP tool call (${toolName}):`, error);
+    throw error;
   }
 }

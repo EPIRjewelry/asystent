@@ -17,7 +17,7 @@ export default {
 
     // Proxy request do DO
     if (url.pathname.startsWith('/api/chat/send') || url.pathname.startsWith('/api/chat/history')) {
-      return stub.fetch(request);
+      return stub.fetch(request.clone());
     }
 
     return new Response(JSON.stringify({ ok: true, sessionId }), { headers: { 'Content-Type': 'application/json' } });

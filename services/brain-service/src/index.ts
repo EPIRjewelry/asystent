@@ -1,4 +1,6 @@
 import { availableTools, executeTool, ToolResult } from './tools';
+import { runCloudflareAi, streamAiResponse, AiPayload } from './ai-client';
+import { MODELS } from './model-params';
 
 export interface Env {
   AI: any; // Cloudflare Workers AI binding
@@ -7,6 +9,11 @@ export interface Env {
   ANALYTICS_API_SERVICE: Fetcher;
   MCP_API_ENDPOINT: string;
   MCP_API_KEY: string;
+  SHOPIFY_ADMIN_TOKEN?: string; // Opcjonalny, do dostępu do Shopify Admin API
+  SHOPIFY_DOMAIN: string; // Domena sklepu Shopify, np. "epir-jewelry-development.myshopify.com"
+  CLOUDFLARE_ACCOUNT_ID: string;
+  AI_GATEWAY_ID: string;
+  GROQ_API_KEY?: string;
 }
 
 interface ProcessRequest {
@@ -40,13 +47,21 @@ export default {
       // 2. Multimodalna analiza obrazu (Llama 3.2 Vision)
       if (image_data_base64) {
         try {
-          const imageResult = await env.AI.run(
-            '@cf/meta/llama-3.2-11b-vision-instruct',
-            {
-              prompt: 'Opisz styl, materiał i kamienie w tej biżuterii. Zwróć krótki opis tekstowy, bez JSONa, aby wzbogacić prompt LLM.',
-              image: [image_data_base64], // Przekazanie danych obrazu
-            }
-          );
+          const visionPayload: AiPayload = {
+            messages: [
+              { role: 'system', content: 'Jesteś ekspertem jubilerskim analizującym zdjęcia biżuterii.' },
+              { role: 'user', content: 'Opisz styl, materiał i kamienie w tej biżuterii. Zwróć krótki opis tekstowy, bez JSONa, aby wzbogacić prompt LLM.' }
+            ]
+          };
+          
+          // Dla vision modelu używamy specyficznego formatu jeśli env.AI.run go wymaga, 
+          // ale tutaj trzymamy się wytycznych o messages jeśli to możliwe.
+          // Uwaga: Niektóre modele vision wymagają 'image' w parametrach obok 'messages' lub wewnątrz 'messages'.
+          const imageResult = await env.AI.run(MODELS.VISION, {
+            ...visionPayload,
+            image: [image_data_base64]
+          });
+          
           visualAnalysis = `\nKONTEKST WIZUALNY: ${imageResult.response}`;
           console.log(`[Brain Service] Visual analysis for session ${session_id}: ${visualAnalysis}`);
         } catch (visionError) {
@@ -57,7 +72,7 @@ export default {
 
       // 3. Generuj embedding dla zapytania (tekst + ewentualna analiza wizualna)
       const embeddingText = `${query || ''} ${visualAnalysis}`;
-      const embeddingResponse = await env.AI.run('@cf/baai/bge-small-en-v1.5', { text: embeddingText });
+      const embeddingResponse = await env.AI.run(MODELS.EMBEDDING, { text: embeddingText });
       const embedding = embeddingResponse.data[0];
 
       // 4. Wyszukaj w Vectorize
@@ -91,16 +106,18 @@ export default {
 
       // 6. Użyj LLM z Workers AI (zintegrowany kontekst)
       const systemPrompt = `Jesteś wysoce wyspecjalizowanym ekspertem jubilerskim EPIR, artystą, filozofem i inżynierem AI. Twoim zadaniem jest doradzać klientom w zakresie ręcznie wykonanej biżuterii, odlewów z wosku traconego i projektowania 3D w Blenderze. Musisz doskonale rozumieć temat, umieć składać komplety z elementów, dobierać biżuterię do koszyka i proponować tworzenie biżuterii na zamówienie.
-        Odpowiedz na podstawie poniższego kontekstu, priorytetyzując dane z MCP, następnie Vectorize. Nie zmyślaj cen ani dostępności.
+        Odpowiedz na podstawie poniższego kontekstu, priorytetyzując dane z MCP, następnie Vectorize, a także wykorzystując dostępne narzędzia, takie jak pobieranie informacji o produktach Shopify. Nie zmyślaj cen ani dostępności.
         ${contextFromVectorize ? `KONTEKST DODATKOWY (z Vectorize):\n${contextFromVectorize}` : ''}
         ${mcpAnswer ? `DANE Z MCP (Shopify):\n${mcpAnswer}` : ''}`;
 
       const userMessageContent = `${query}${visualAnalysis}`;
-      const messages = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessageContent }];
+      const messages: any[] = [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessageContent }];
 
-      const aiResponse = await env.AI.run('@cf/meta/llama-3-1-8b-instruct-tool-use', {
+      // Używamy runCloudflareAi z ai-client.ts
+      const aiResponse = await runCloudflareAi(env, MODELS.LLM_TOOL_USE, {
         messages,
-        tools: Object.values(availableTools) // Przekaż listę dostępnych narzędzi do modelu
+        // @ts-ignore - tools are supported by this model
+        tools: Object.values(availableTools)
       });
 
       // Sprawdź, czy model chce wywołać narzędzie
@@ -114,7 +131,7 @@ export default {
         messages.push({ role: 'assistant', content: JSON.stringify(aiResponse) });
         messages.push({ role: 'tool', content: JSON.stringify(toolResult) });
 
-        const finalAiResponse = await env.AI.run('@cf/meta/llama-3-1-8b-instruct-tool-use', { messages });
+        const finalAiResponse = await runCloudflareAi(env, MODELS.LLM_TOOL_USE, { messages });
 
         const answer = finalAiResponse.response || 'Nie mogłem znaleźć odpowiedzi po użyciu narzędzia.';
         return json({ answer, source: 'llm+tool', toolUsed: toolCall.name });

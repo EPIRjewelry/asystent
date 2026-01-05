@@ -3,6 +3,10 @@ main = "src/index.ts"
 compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
+[vars]
+CLOUDFLARE_ACCOUNT_ID = "73283c24dc79f92edef30dcdbc98f230"
+AI_GATEWAY_ID = "epir-ai-gateway"
+
 [placement]
 mode = "smart"
 

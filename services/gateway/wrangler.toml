@@ -4,19 +4,26 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
+CLOUDFLARE_ACCOUNT_ID = "73283c24dc79f92edef30dcdbc98f230"
+AI_GATEWAY_ID = "epir-ai-gateway"
 SHOP_DOMAIN = "your-shopify-store.myshopify.com"
 SHOPIFY_API_SECRET = "your_shopify_api_secret"
 
 [placement]
 mode = "smart"
 
-[services]
-  [services.CUSTOMER_DIALOGUE_SERVICE]
-  service = "epir-customer-dialogue-worker"
-  [services.WEB_PIXEL_INGESTOR_SERVICE]
-  service = "epir-web-pixel-ingestor"
-  [services.ANALYTICS_API_SERVICE]
-  service = "epir-analytics-api-worker"
+
+[[services]]
+binding = "CUSTOMER_DIALOGUE_SERVICE"
+service = "epir-customer-dialogue-worker"
+
+[[services]]
+binding = "WEB_PIXEL_INGESTOR_SERVICE"
+service = "epir-web-pixel-ingestor"
+
+[[services]]
+binding = "ANALYTICS_API_SERVICE"
+service = "epir-analytics-api-worker"
 
 [observability]
   traces.enabled = true
