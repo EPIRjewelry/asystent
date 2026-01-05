@@ -13,10 +13,46 @@
     // App Proxy URL (zgodne z Gateway -> /apps/chat -> /api/chat)
     const endpoint = '/apps/chat/api/chat/send';
 
-    const appendMessage = (text, type) => {
+    // Ensure header title exists and add a connection status indicator
+    const titleEl = document.querySelector('.assistant-title');
+    if (titleEl) {
+      if (!titleEl.textContent || titleEl.textContent.trim() === '') {
+        titleEl.textContent = 'Epir AI Assistant';
+      }
+      const statusEl = document.createElement('span');
+      statusEl.className = 'assistant-status';
+      statusEl.setAttribute('aria-hidden', 'true');
+      statusEl.textContent = '•';
+      statusEl.title = 'Status połączenia nieznany';
+      titleEl.parentElement && titleEl.parentElement.appendChild(statusEl);
+    }
+
+    const setStatus = (ok) => {
+      const s = document.querySelector('.assistant-status');
+      if (!s) return;
+      if (ok === true) {
+        s.textContent = '●';
+        s.style.color = '#16a34a'; // green
+        s.title = 'Połączono z usługą czatu';
+      } else if (ok === false) {
+        s.textContent = '●';
+        s.style.color = '#ef4444';
+        s.title = 'Brak połączenia z usługą czatu';
+      } else {
+        s.textContent = '•';
+        s.style.color = '';
+        s.title = 'Status połączenia nieznany';
+      }
+    };
+
+    const appendMessage = (text, type, extraHtml) => {
       const div = document.createElement('div');
       div.className = `msg msg-${type}`;
-      div.textContent = text;
+      if (extraHtml) {
+        div.innerHTML = `${text} ${extraHtml}`;
+      } else {
+        div.textContent = text;
+      }
       messagesEl.appendChild(div);
       messagesEl.scrollTop = messagesEl.scrollHeight;
     };
@@ -30,12 +66,18 @@
       });
     }
 
-    if (form && input && messagesEl) {
-      form.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const text = input.value.trim();
-        if (!text) return;
+    // Ping endpoint (OPTIONS) to set initial status; non-blocking
+    (async () => {
+      try {
+        const res = await fetch(endpoint, { method: 'OPTIONS' });
+        setStatus(res.ok);
+      } catch (e) {
+        setStatus(false);
+      }
+    })();
 
+    if (form && input && messagesEl) {
+      const doSend = async (text) => {
         appendMessage(text, 'user');
         input.value = '';
         messagesEl.classList.add('is-loading');
@@ -47,14 +89,40 @@
             body: JSON.stringify({ role: 'user', content: text })
           });
 
+          if (!res.ok) {
+            setStatus(false);
+            const errHtml = `<button class="assistant-retry" data-text="${encodeURIComponent(text)}">Spróbuj ponownie</button>`;
+            appendMessage(`Błąd połączenia (status: ${res.status}).`, 'error', errHtml);
+            return;
+          }
+
+          setStatus(true);
           const data = await res.json();
           const assistantMsg = data.messages?.filter(m => m.role === 'assistant').slice(-1)[0]?.content || data.response || 'Brak odpowiedzi.';
           appendMessage(assistantMsg, 'assistant');
         } catch (err) {
           console.error('[Assistant] Fetch error', err);
-          appendMessage('Błąd połączenia.', 'error');
+          setStatus(false);
+          const errHtml = `<button class="assistant-retry" data-text="${encodeURIComponent(text)}">Spróbuj ponownie</button>`;
+          appendMessage('Błąd połączenia. Sprawdź konfigurację app proxy i działanie serwera.', 'error', errHtml);
         } finally {
           messagesEl.classList.remove('is-loading');
+        }
+      };
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+        await doSend(text);
+      });
+
+      // Delegate retry click to re-send message
+      messagesEl.addEventListener('click', (e) => {
+        const btn = e.target.closest('.assistant-retry');
+        if (btn) {
+          const text = decodeURIComponent(btn.getAttribute('data-text') || '');
+          if (text) doSend(text);
         }
       });
     }
